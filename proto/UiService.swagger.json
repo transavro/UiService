@@ -1,0 +1,239 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "UiService.proto",
+    "version": "1.0.0"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/getvendorspec": {
+      "post": {
+        "operationId": "GetVendorSpecification",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "$ref": "#/x-stream-definitions/UiServiceUiSpec"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UiServiceUiSpecReq"
+            }
+          }
+        ],
+        "tags": [
+          "UiService"
+        ]
+      }
+    },
+    "/regvendorspec": {
+      "post": {
+        "operationId": "RegisterOrUpdateBrand",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/UiServiceResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UiServiceUiSpec"
+            }
+          }
+        ],
+        "tags": [
+          "UiService"
+        ]
+      }
+    },
+    "/unregvendorspec": {
+      "post": {
+        "operationId": "UnRegisterBrand",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/UiServiceResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UiServiceUiSpecReq"
+            }
+          }
+        ],
+        "tags": [
+          "UiService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "UiServiceResponse": {
+      "type": "object",
+      "properties": {
+        "isSuccessfull": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "responseMessage": {
+          "type": "string"
+        }
+      }
+    },
+    "UiServiceUiSpec": {
+      "type": "object",
+      "properties": {
+        "appList": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "searchColor": {
+          "type": "string"
+        },
+        "fastlaneColor": {
+          "type": "string"
+        },
+        "focusColor": {
+          "type": "string"
+        },
+        "hasFastlane": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "hasCarousel": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "aboutUsUrl": {
+          "type": "string"
+        },
+        "brandLogoUrl": {
+          "type": "string"
+        },
+        "helpUrl": {
+          "type": "string"
+        },
+        "activatedStatus": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "vendor": {
+          "type": "string"
+        },
+        "brand": {
+          "type": "string"
+        },
+        "gradient": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bgImageUrl": {
+          "type": "string"
+        },
+        "fontUrl": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "UiServiceUiSpecReq": {
+      "type": "object",
+      "properties": {
+        "vendor": {
+          "type": "string"
+        },
+        "brand": {
+          "type": "string"
+        },
+        "tvEmac": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "runtimeStreamError": {
+      "type": "object",
+      "properties": {
+        "grpc_code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "http_code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "http_status": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  },
+  "x-stream-definitions": {
+    "UiServiceUiSpec": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/UiServiceUiSpec"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of UiServiceUiSpec"
+    }
+  }
+}

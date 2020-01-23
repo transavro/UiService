@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package UiService;
+
+import "google/protobuf/timestamp.proto";
+import   "google/api/annotations.proto";
+
+
+service UiService {
+    rpc GetVendorSpecification(UiSpecReq) returns (stream UiSpec){
+        option (google.api.http) = {
+                post:"/getvendorspec"
+                body: "*"
+        };
+    }
+    rpc RegisterOrUpdateBrand(UiSpec) returns (Response) {
+        option (google.api.http) = {
+                post:"/regvendorspec"
+                body: "*"
+        };
+    }
+    rpc UnRegisterBrand(UiSpecReq) returns (Response) {
+        option (google.api.http) = {
+                post:"/unregvendorspec"
+                body: "*"
+        };
+    }
+}
+
+message UiSpecReq{
+    string vendor = 1;
+    string brand = 2;
+    string tvEmac = 3;
+}
+
+message Response{
+    bool isSuccessfull  =1;
+    string responseMessage =2;
+}
+
+message UiSpec{
+    repeated string appList = 1;
+    string searchColor = 2;
+    string fastlaneColor = 3;
+    string focusColor = 4;
+    bool hasFastlane = 5;
+    bool hasCarousel = 6;
+    string aboutUsUrl = 7;
+    string brandLogoUrl = 8;
+    string helpUrl = 9;
+    bool activatedStatus = 10;
+    string vendor = 11;
+    string brand = 12;
+    repeated string gradient = 13;
+    string bgImageUrl = 16;
+    string fontUrl = 17;
+    google.protobuf.Timestamp createdAt = 14;
+    google.protobuf.Timestamp updatedAt = 15;
+}
