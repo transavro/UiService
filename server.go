@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	codecs "github.com/amsokol/mongo-go-driver-protobuf"
-	"github.com/dgrijalva/jwt-go"
+	pbAuth "github.com/transavro/AuthService/proto"
 	"github.com/go-redis/redis"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/transavro/UiService/apihandler"
@@ -50,109 +50,55 @@ func init() {
 	tileRedis = getRedisClient(schedularRedisHost)
 }
 
-func credMatcher(headerName string) (mdName string, ok bool) {
-	if headerName == "Login" || headerName == "Password" {
-		return headerName, true
-	}
-	return "", false
-}
-
-// authenticateAgent check the client credentials
-func authenticateClient(ctx context.Context, s *apihandler.Server) (string, error) {
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		clientLogin := strings.Join(md["login"], "")
-		clientPassword := strings.Join(md["password"], "")
-		if clientLogin != "nayan" {
-			return "", fmt.Errorf("unknown user %s", clientLogin)
-		}
-		if clientPassword != "makasare" {
-			return "", fmt.Errorf("bad password %s", clientPassword)
-		}
-		log.Printf("authenticated client: %s", clientLogin)
-		return "42", nil
-	}
-	return "", fmt.Errorf("missing credentials")
-}
-
-//uthenticate client using jwt
-func auth(ctx context.Context) error {
-	meta, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return status.Errorf(
-			codes.InvalidArgument,
-			"missing context",
-		)
-	}
-
-	authString, ok := meta["authorization"]
-	if !ok {
-		return status.Errorf(
-			codes.Unauthenticated,
-			"missing authorization",
-		)
-	}
-	// validate token algo
-	log.Println("found jwt token")
-	jwtToken, err := jwt.Parse(
-		authString[0],
-		func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("bad signing method")
-			}
-			// additional validation goes here.
-			return []byte("transavro"), nil
-		},
-	)
-
-	if jwtToken.Valid {
-		return nil
-	}
-	if err != nil {
-		return status.Error(codes.Internal, err.Error())
-	}
-	return status.Error(codes.Internal, "bad token")
-}
-
-func unaryInterceptor(
-	ctx context.Context,
-	req interface{},
-	info *grpc.UnaryServerInfo,
-	handler grpc.UnaryHandler) (interface{}, error) {
-
-	s, ok := info.Server.(*apihandler.Server)
-	if !ok {
-		return nil, status.Errorf(codes.Internal, fmt.Sprintf("unable to cast the server"))
-	}
-	clientID, err := authenticateClient(ctx, s)
+func unaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	log.Println("unaryInterceptor")
+	err := checkingJWTToken(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ctx = context.WithValue(ctx, clientIDKey, clientID)
 	return handler(ctx, req)
+}
 
-	// auth using jwt
+func checkingJWTToken(ctx context.Context) error{
+	meta, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return status.Error(codes.NotFound, fmt.Sprintf("no auth meta-data found in request" ))
+	}
 
-	//if err := auth(ctx); err != nil {
-	//	return nil, err
-	//}
-	//log.Println("authorization OK")
-	//return handler(ctx, req)
+	token := meta["token"]
+
+	if len(token) == 0 {
+		return  status.Error(codes.NotFound, fmt.Sprintf("Token not found" ))
+	}
+
+	// calling auth service
+	conn, err := grpc.Dial(":7757", grpc.WithInsecure())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	// Auth here
+	authClient := pbAuth.NewAuthServiceClient(conn)
+	_, err = authClient.ValidateToken(context.Background(), &pbAuth.Token{
+		Token: token[0],
+	})
+	if err != nil {
+		return  status.Error(codes.NotFound, fmt.Sprintf("Invalid token:  %s ", err ))
+	}else {
+		return nil
+	}
 }
 
 // streamAuthIntercept intercepts to validate authorization
-func streamAuthIntercept(
-	server interface{},
-	stream grpc.ServerStream,
-	info *grpc.StreamServerInfo,
-	handler grpc.StreamHandler,
-) error {
-	// auth using jwt
-	if err := auth(stream.Context()); err != nil {
+func streamIntercept(server interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler, ) error {
+	err := checkingJWTToken(stream.Context())
+	if err != nil {
 		return err
 	}
-	log.Println("authorization OK")
 	return handler(server, stream)
 }
+
 
 func startGRPCServer(address string) error {
 	// create a listener on TCP port
@@ -165,8 +111,12 @@ func startGRPCServer(address string) error {
 		tileRedis,
 	}
 
+	serverOptions := []grpc.ServerOption{grpc.UnaryInterceptor(unaryInterceptor), grpc.StreamInterceptor(streamIntercept)}
+
 	// attach the Ping service to the server
-	grpcServer := grpc.NewServer()                    // attach the Ping service to the server
+	grpcServer := grpc.NewServer(serverOptions...)
+
+	// attach the Ping service to the server
 	pb.RegisterUiServiceServer(grpcServer, &s) // start the server
 	//log.Printf("starting HTTP/2 gRPC server on %s", address)
 	if err := grpcServer.Serve(lis); err != nil {
@@ -179,7 +129,7 @@ func startRESTServer(address, grpcAddress string) error {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	mux := runtime.NewServeMux(runtime.WithIncomingHeaderMatcher(credMatcher),)
+	mux := runtime.NewServeMux(runtime.WithIncomingHeaderMatcher(runtime.DefaultHeaderMatcher),)
 
 	opts := []grpc.DialOption{grpc.WithInsecure()} // Register ping
 
